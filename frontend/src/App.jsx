@@ -78,26 +78,39 @@ function App() {
 
   // --- ACCIÓN 2: CAMBIAR ESTADO (Aprobar/Cancelar) ---
   const cambiarEstado = async (id, accion, esCiudadano = false) => {
-    if (esCiudadano) {
+    // Lógica mejorada para confirmar cancelación de usuario
+    if (esCiudadano && accion === 'cancelar') {
         const confirm = await Swal.fire({
             title: '¿Cancelar tu reserva?',
-            text: "Al ser ciudadano, solo puedes cancelar tus solicitudes pendientes.",
-            icon: 'question',
+            text: "Liberarás este horario para que otra persona pueda usarlo.",
+            icon: 'warning',
             showCancelButton: true,
-            confirmButtonText: 'Sí, cancelar'
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, cancelar reserva',
+            cancelButtonText: 'No, mantenerla'
         });
         if (!confirm.isConfirmed) return;
     }
 
-    await fetch(`${API_URL}/reservas/${id}/${accion}`, { method: 'PUT' });
-    cargarDatos();
-    
-    const msg = accion === 'aprobar' ? 'Reserva Aprobada' : 'Reserva Cancelada';
-    Swal.fire({
-      title: msg,
-      icon: accion === 'aprobar' ? 'success' : 'info',
-      toast: true, position: 'top-end', showConfirmButton: false, timer: 2000
-    });
+    try {
+        const res = await fetch(`${API_URL}/reservas/${id}/${accion}`, { method: 'PUT' });
+        
+        if (res.ok) {
+            cargarDatos();
+            const msg = accion === 'aprobar' ? 'Reserva Aprobada' : 'Reserva Cancelada';
+            Swal.fire({
+              title: msg,
+              icon: accion === 'aprobar' ? 'success' : 'info',
+              toast: true, position: 'top-end', showConfirmButton: false, timer: 2000
+            });
+        } else {
+            Swal.fire('Error', 'No se pudo actualizar el estado', 'error');
+        }
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error', 'No se pudo actualizar el estado', 'error');
+    }
   };
 
   // --- ACCIÓN 3: ELIMINAR FÍSICAMENTE (Solo Admin) ---
@@ -113,10 +126,19 @@ function App() {
 
     if (result.isConfirmed) {
       try {
-        await fetch(`${API_URL}/reservas/${id}`, { method: 'DELETE' });
-        cargarDatos();
-        Swal.fire('Eliminado', '', 'success');
-      } catch (e) { Swal.fire('Error', 'Fallo de conexión', 'error'); }
+        const res = await fetch(`${API_URL}/reservas/${id}`, { method: 'DELETE' });
+        
+        if (res.ok) {
+            cargarDatos();
+            Swal.fire('Eliminado', 'La reserva ha sido borrada físicamente.', 'success');
+        } else {
+            const data = await res.json().catch(() => ({})); 
+            Swal.fire('Error', data.message || 'No se pudo eliminar la reserva.', 'error');
+        }
+      } catch (e) { 
+          console.error(e);
+          Swal.fire('Error', 'Fallo de conexión con el servidor', 'error'); 
+      }
     }
   };
 
@@ -131,7 +153,6 @@ function App() {
             method: method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(formCancha)
         });
         
-        // Manejo robusto de respuesta
         const contentType = res.headers.get("content-type");
         let data;
         if (contentType && contentType.indexOf("application/json") !== -1) {
@@ -209,7 +230,20 @@ function App() {
                             </div>
                             <div className="input-group"><label>Tu Nombre</label><input value={formReserva.usuario_nombre} onChange={e=>setFormReserva({...formReserva, usuario_nombre:e.target.value})} required/></div>
                             <div className="input-group"><label>Fecha</label><input type="date" min={hoy} value={formReserva.fecha} onChange={e=>setFormReserva({...formReserva, fecha:e.target.value})} required/></div>
-                            <div className="input-group"><label>Hora (07-23)</label><input type="number" min="7" max="23" value={formReserva.hora_inicio} onChange={e=>setFormReserva({...formReserva, hora_inicio:e.target.value})} required/></div>
+                            
+                            {/* 👇 CAMBIO DE HORARIO AQUÍ 👇 */}
+                            <div className="input-group">
+                                <label>Hora (07-22)</label>
+                                <input 
+                                    type="number" 
+                                    min="7" 
+                                    max="22" 
+                                    value={formReserva.hora_inicio} 
+                                    onChange={e=>setFormReserva({...formReserva, hora_inicio:e.target.value})} 
+                                    required
+                                />
+                            </div>
+
                         </div>
                         <button className="btn btn-primary" style={{marginTop:'20px', width:'100%', justifyContent:'center'}}>Confirmar Reserva</button>
                     </form>
@@ -231,7 +265,7 @@ function App() {
             {/* TABLA PÚBLICA CON CANCELAR */}
             <div className="card" style={{marginTop:'24px'}}>
                 <h3>📋 Mis Reservas (Público)</h3>
-                <p style={{fontSize:'0.85rem', color:'gray'}}>Puedes cancelar tus reservas si aún están pendientes.</p>
+                <p style={{fontSize:'0.85rem', color:'gray'}}>Puedes cancelar tus reservas si aún están pendientes o aprobadas.</p>
                 <div className="table-container">
                     <table>
                         <thead><tr><th>Cancha</th><th>Usuario</th><th>Fecha</th><th>Estado</th><th>Acción</th></tr></thead>
@@ -243,7 +277,7 @@ function App() {
                                     <td>{r.fecha.split('T')[0]} {r.hora_inicio}:00</td>
                                     <td><span className={`badge ${r.estado}`}>{r.estado}</span></td>
                                     <td>
-                                        {r.estado === 'pendiente' && (
+                                        {(r.estado === 'pendiente' || r.estado === 'aprobada') && (
                                             <button 
                                                 className="btn-icon danger" 
                                                 onClick={()=>cambiarEstado(r.id, 'cancelar', true)} 
