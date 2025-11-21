@@ -28,10 +28,6 @@ function App() {
   const [formCancha, setFormCancha] = useState({ nombre: '', deporte: '', precio: '' });
   const [editCanchaId, setEditCanchaId] = useState(null);
 
-  // --- CREDENCIALES SIMULADAS (Login Superficial) ---
-  const ADMIN_USER = 'admin';
-  const ADMIN_PASS = '1234';
-
   // --- HELPER: ICONOS ---
   const getDeporteIcon = (deporte) => {
     const d = deporte.toLowerCase();
@@ -82,6 +78,7 @@ function App() {
 
   // --- ACCIÓN 2: CAMBIAR ESTADO (Aprobar/Cancelar) ---
   const cambiarEstado = async (id, accion, esCiudadano = false) => {
+    // Lógica mejorada para confirmar cancelación de usuario
     if (esCiudadano && accion === 'cancelar') {
         const confirm = await Swal.fire({
             title: '¿Cancelar tu reserva?',
@@ -190,50 +187,6 @@ function App() {
     setFormCancha({ nombre: '', deporte: '', precio: '' });
   };
 
-  // --- ACCIÓN 5: LOGIN SIMULADO (Solo Frontend) ---
-  const handleAdminClick = async () => {
-    if (vistaAdmin) {
-        setVistaAdmin(false);
-        Swal.fire('Sesión Cerrada', 'Has vuelto al modo ciudadano.', 'info');
-        return;
-    }
-
-    // Pedir credenciales
-    const { value: formValues } = await Swal.fire({
-        title: 'Acceso Administrativo',
-        html:
-            '<input id="swal-input1" class="swal2-input" placeholder="Usuario">' +
-            '<input id="swal-input2" class="swal2-input" placeholder="Contraseña" type="password">',
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Entrar',
-        preConfirm: () => {
-            return [
-                document.getElementById('swal-input1').value,
-                document.getElementById('swal-input2').value
-            ]
-        }
-    });
-
-    if (formValues) {
-        const [username, password] = formValues;
-        
-        // Validación local (Superficial)
-        if (username === ADMIN_USER && password === ADMIN_PASS) {
-            setVistaAdmin(true);
-            Swal.fire({
-                title: '¡Bienvenido Admin!',
-                text: 'Ahora tienes acceso total.',
-                icon: 'success',
-                timer: 2000,
-                showConfirmButton: false
-            });
-        } else {
-            Swal.fire('Acceso Denegado', 'Usuario o contraseña incorrectos.', 'error');
-        }
-    }
-  };
-
   // Filtros y cálculos
   const reservasFiltradas = filtroEstado === 'todas' ? reservas : reservas.filter(r => r.estado === filtroEstado);
   const maxReservas = stats.porCancha && stats.porCancha.length > 0 ? Math.max(...stats.porCancha.map(c => c.total_reservas)) : 1;
@@ -250,10 +203,9 @@ function App() {
             </div>
         </div>
         <div>
-            {/* 👇 AQUÍ ESTÁ EL BOTÓN CONECTADO AL LOGIN 👇 */}
-            <button className={`btn ${vistaAdmin ? 'btn-secondary' : 'btn-primary'}`} onClick={handleAdminClick}>
+            <button className={`btn ${vistaAdmin ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setVistaAdmin(!vistaAdmin)}>
                 {vistaAdmin ? <Users size={18}/> : <Activity size={18}/>}
-                {vistaAdmin ? 'Cerrar Sesión' : 'Acceso Admin'}
+                {vistaAdmin ? 'Modo Ciudadano' : 'Modo Admin'}
             </button>
         </div>
       </div>
@@ -278,6 +230,8 @@ function App() {
                             </div>
                             <div className="input-group"><label>Tu Nombre</label><input value={formReserva.usuario_nombre} onChange={e=>setFormReserva({...formReserva, usuario_nombre:e.target.value})} required/></div>
                             <div className="input-group"><label>Fecha</label><input type="date" min={hoy} value={formReserva.fecha} onChange={e=>setFormReserva({...formReserva, fecha:e.target.value})} required/></div>
+                            
+                            {/* 👇 CAMBIO DE HORARIO AQUÍ 👇 */}
                             <div className="input-group">
                                 <label>Hora (07-22)</label>
                                 <input 
@@ -289,6 +243,7 @@ function App() {
                                     required
                                 />
                             </div>
+
                         </div>
                         <button className="btn btn-primary" style={{marginTop:'20px', width:'100%', justifyContent:'center'}}>Confirmar Reserva</button>
                     </form>
