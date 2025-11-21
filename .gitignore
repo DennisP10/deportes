@@ -1,0 +1,30 @@
+# --- Dependencias (Ignora node_modules en backend, frontend y raíz) ---
+node_modules/
+package-lock.json # Opcional: A veces se sube, pero si usas yarn o pnpm puede variar. Lo normal es NO ignorarlo, pero si tienes conflictos, puedes descomentarlo.
+# yarn.lock
+
+# --- Archivos de Entorno y Secretos (¡CRITICO!) ---
+# Esto evita que subas tus contraseñas de base de datos a GitHub
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+frontend/.env
+
+# --- Builds de Producción (Lo que genera Vite) ---
+dist/
+build/
+frontend/dist/
+
+# --- Logs y Errores ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs
+*.log
+
+# --- Archivos del Sistema Operativo ---
+.DS_Store
+Thumbs.db
